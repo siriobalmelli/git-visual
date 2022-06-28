@@ -165,10 +165,12 @@ def stackplot(periods, stats, label) -> None:
     y_num = {a: [stats[a]['insertions'][i] + stats[a]['deletions'][i]
                  for i in length]
              for a in authors}
-    y_ins = {a: [stats[a]['insertions'][i] / sum(stats[k]['insertions'][i] for k in authors)  # noqa: E501
+    y_ins = {a: [stats[a]['insertions'][i] / (
+                    sum(stats[k]['insertions'][i] for k in authors) or 1)
                  for i in length]
              for a in authors}
-    y_del = {a: [stats[a]['deletions'][i] / sum(stats[k]['deletions'][i] for k in authors)  # noqa: E501
+    y_del = {a: [stats[a]['deletions'][i] / (
+                    sum(stats[k]['deletions'][i] for k in authors) or 1)
                  for i in length]
              for a in authors}
 
@@ -225,30 +227,38 @@ def barchart(periods, stats, label) -> None:
 
         # insertions
         a_val = [stats[auth]["insertions"][i] for i in length]
-        a_pct = [stats[auth]['insertions'][i] / sum(stats[k]['insertions'][i] for k in authors)  # noqa: E501
+        a_pct = [int(stats[auth]['insertions'][i] / (
+                        sum(stats[k]['insertions'][i] for k in authors) or 1)
+                     * 100)
                  for i in length]
 
         # deletions stacked above insertions, all red, only 1 legend for all
         one_lbl = 'deletions' if i == 1 else ''  # only label red column once
         b_val = [stats[auth]["deletions"][i] for i in length]
-        b_pct = [((stats[auth]['deletions'][i]
-                  / sum(stats[k]['deletions'][i] for k in authors)
-                  + a_pct[i]) / 2)
+        # prevent dividing by 2 when one or both is zero
+        b_pct = [int(stats[auth]['deletions'][i] / (
+                        sum(stats[k]['deletions'][i] for k in authors) or 1)
+                     * 100)
+                 for i in length]
+        b_pct = [int((a_pct[i] + b_pct[i]) / ((bool(a_pct[i]) + bool(b_pct[i])) or 2))  # noqa: E501
                  for i in length]
         b = ax.bar(x, b_val, width=width, label=one_lbl, color='red',
                    bottom=a_val, **plot_fmt)
-        ax.bar_label(b, labels=[f'{int(p * 100)}%' for p in b_pct],
+        ax.bar_label(b, labels=[f'{p}%' for p in b_pct],
                      padding=4, label_type='edge', **label_fmt)
 
         # build 'a' _after_ 'b' so the deletion legend is shown first :P
         a = ax.bar(x, a_val, width=width, label=auth, **plot_fmt)
-        ax.bar_label(a, labels=[f'{int(p * 100)}%' for p in a_pct],
+        ax.bar_label(a, labels=[f'{a_pct[i]}%' if (a_pct[i] and a_pct[i] != b_pct[i]) else ''  # noqa: E501
+                                for i in length],
                      padding=0, label_type='center', **label_fmt)  # noqa: E501
 
     ax.set_title(label)
     ax.set_ylabel('Total Lines of Code')
-    ax.legend(loc='best')
-    ax.margins(y=0.20)  # more space at the top helps legibility
+    ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.07),
+              ncol=len(authors) + 1,  # +1 is the deletions legend
+              fontsize='x-small')
+    ax.margins(y=0.25)  # more space at the top helps legibility
 
     # TODO: user a proper path library throughout this whole tool
     if plot_save:
