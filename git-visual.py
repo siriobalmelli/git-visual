@@ -153,7 +153,8 @@ def gather_merge(gathers: list) -> tuple:
 
 
 # common variables for all plotting functions
-plot_fmt = {'alpha': 0.7, 'antialiased': True}
+plot_fmt = {'alpha': 0.7,
+            'antialiased': True}
 
 
 def stackplot(periods, stats, label) -> None:
@@ -193,11 +194,9 @@ def stackplot(periods, stats, label) -> None:
 
 
 def barchart(periods, stats, label) -> None:
-    y_num = {k: [stats[k]['insertions'][i][0] + stats[k]['deletions'][i][0]
-                 for i in range(len(stats[k]['insertions']))]
-             for k in sorted(stats.keys())}
-
     fig, ax = plt.subplots()
+    label_fmt = {'label_type': 'edge',
+                 'fontsize': 'x-small'}
 
     x = [i for i in range(len(periods))]
     ax.set_xticks(x)
@@ -206,26 +205,38 @@ def barchart(periods, stats, label) -> None:
     # Bar placement is the _center_ of the bar, x is the _center_ of all bars:
     # when aligning remove 1 bar-width, corresponding to half
     # on each side of the group.
-    authors = y_num.keys()
+    authors = stats.keys()
     width = 1.0 / (len(authors) + 1)  # leave 1 bar of space between groups
     offset = width * (len(authors) - 1) / 2
     i = 0
     for auth in authors:
-        b = ax.bar([n - offset + (width * i) for n in x], y_num[auth], width,
-                   label=auth, **plot_fmt)
-        ax.bar_label(b, label_type='edge', padding=3, fontsize='x-small')
+        my_x = [n - offset + (width * i) for n in x]
         i += 1
-    # authors = y_num.keys()
-    # bottom = [0 for n in list(y_num.values())[0]]
-    # for auth in authors:
-    #     b = ax.bar(periods, y_num[auth], 0.35, label=auth, bottom=bottom)
-    #     bottom = [n for n in map(add, y_num[auth], bottom)]
-    #     ax.bar_label(b, label_type='center')
+
+        a_val = [stats[auth]["insertions"][i][0]
+                 for i in range(len(stats[auth]['insertions']))]
+        a_lbl = [f'{int(stats[auth]["insertions"][i][1] * 100)}%'
+                 for i in range(len(stats[auth]['insertions']))]
+
+        # deletions stacked above insertions, all red, only 1 legend for all
+        one_lbl = '% deletions' if i == 1 else ''  # only label red column once
+        b_val = [stats[auth]["deletions"][i][0]
+                 for i in range(len(stats[auth]['deletions']))]
+        b_lbl = [  # top of deletions column should be total %
+            f'{int((stats[auth]["insertions"][i][1] + stats[auth]["deletions"][i][1]) * 50)}%'  # noqa: E501
+            for i in range(len(stats[auth]['insertions']))]
+        b = ax.bar(my_x, b_val, width=width, label=one_lbl, color='red',
+                   bottom=a_val, **plot_fmt)
+        ax.bar_label(b, labels=b_lbl, padding=4, **label_fmt)
+
+        # build 'a' _after_ 'b' so the deletion legend is shown first :P
+        a = ax.bar(my_x, a_val, width=width, label=auth, **plot_fmt)
+        ax.bar_label(a, labels=a_lbl, padding=0, **label_fmt)
 
     ax.set_title(label)
-    ax.set_ylabel('Lines of Code')
+    ax.set_ylabel('Total Lines of Code')
     ax.legend(loc='best')
-    ax.margins(y=0.25)  # more space at the top helps legibility
+    ax.margins(y=0.20)  # more space at the top helps legibility
 
     plt.show()
 
@@ -271,6 +282,7 @@ if __name__ == "__main__":
     else:
         paths = [getcwd()]
 
+    # TODO: parallelism (2022-06-28, Sirio Balmelli) #
     each = [gather(args.Start[0], Period[args.Period[0]], p) for p in paths]
     if args.ind:
         for periods, stats, label in each:
