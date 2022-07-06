@@ -46,7 +46,7 @@ re_author = re.compile(r'\s*(\S.*) (\<.*\>):')
 re_stat = re.compile(rf'\s*({"|".join(re_names)}):\s+([0-9]+)\s+\(([0-9.]+)%\)')  # noqa: E501
 
 
-def gather(start: date, period: Period, cwd: str) -> tuple:
+def gather(start: date, end: date, period: Period, cwd: str) -> tuple:
     """
     Return a tuple of (periods, stats, label) where stats is:
     {user: {stat: [per-period values]}}
@@ -55,7 +55,7 @@ def gather(start: date, period: Period, cwd: str) -> tuple:
     @period : reporting interval
     """
     start = period.start(start)
-    end = period.start(period.next(date.today()))
+    end = period.start(period.next(end))
 
     chdir(cwd)
     env = environ.copy()
@@ -279,16 +279,24 @@ if __name__ == "__main__":
 
     ap.add_argument(
         'Period',
-        nargs=1, choices=Period.__members__,
+        nargs='?', choices=Period.__members__,
+        default='Quarterly',
         help=('Reporting period: time represented by each graph tick')
         )
     ap.add_argument(
         'Start',
-        nargs=1, type=date.fromisoformat,
+        nargs='?', type=date.fromisoformat,
+        default=date.today().replace(month=1, day=1),
         help=('Start date in ISO (YYYY-mm-dd) format.'
               ' Actual start date will be rounded to the previous Period.')
         )
-    # TODO: add optional 'End'
+
+    ap.add_argument(
+        'End',
+        nargs='?', type=date.fromisoformat,
+        default=date.today(),
+        help=('End date in ISO (YYYY-mm-dd) format.')
+        )
 
     ap.add_argument(
         '-p', '--paths', metavar='PATH',
@@ -320,7 +328,8 @@ if __name__ == "__main__":
         plot_save = args.write
 
     # TODO: parallelism (2022-06-28, Sirio Balmelli) #
-    each = [gather(args.Start[0], Period[args.Period[0]], p) for p in paths]
+    each = [gather(args.Start, args.End, Period[args.Period], p)
+            for p in paths]
     if args.ind:
         for periods, stats, label in each:
             # TODO: add a command-line switch (2022-06-28, Sirio Balmelli) #
