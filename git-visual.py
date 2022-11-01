@@ -47,6 +47,7 @@ re_stat = re.compile(rf'\s*({"|".join(re_names)}):\s+([0-9]+)\s+\(([0-9.]+)%\)')
 
 
 def gather(start: date, end: date, period: Period, cwd: str) -> tuple:
+    # TODO: ignore enormous commits (2022-07-08, Sirio Balmelli) #
     """
     Return a tuple of (periods, stats, label) where stats is:
     {user: {stat: [per-period values]}}
@@ -206,6 +207,8 @@ def stackplot(periods, stats, label) -> None:
 
 
 def barchart(periods, stats, label) -> None:
+    # TODO: graph total volume (2022-07-08, Sirio Balmelli) #
+
     authors = stats.keys()
     length = range(len(periods))
 
@@ -268,6 +271,8 @@ def barchart(periods, stats, label) -> None:
     else:
         plt.show()
 
+
+# TODO: overlapping histograms of commit size by author
 
 if __name__ == "__main__":
     import argparse
